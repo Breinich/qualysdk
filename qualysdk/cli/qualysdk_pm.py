@@ -5,8 +5,11 @@ CLI script to quickly perform Patch Management
 
 from argparse import ArgumentParser, Namespace
 
-from qualysdk import TokenAuth, write_excel, BaseList
+from qualysdk import TokenAuth, write_excel, BaseList, configure_logging
 from qualysdk.pm import *
+from qualysdk.base.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def cli_fn(auth: TokenAuth, args: Namespace, endpoint: str) -> None:
@@ -46,7 +49,7 @@ def cli_fn(auth: TokenAuth, args: Namespace, endpoint: str) -> None:
             args.output += ".txt"
         with open(args.output, "w") as f:
             f.write(str(result))
-        print(f"Results written to {args.output}")
+        logger.info(f"Results written to {args.output}")
         return
 
     # If the result object does NOT have the len() method available,
@@ -70,7 +73,28 @@ def main():
         "--platform",
         help="Qualys platform",
         default="qg3",
-        choices=["qg1", "qg2", "qg3", "qg4"],
+        choices=[
+            "qg1",
+            "qg2",
+            "qg3",
+            "qg4",
+            "eu1",
+            "eu2",
+            "eu3",
+            "in1",
+            "ca1",
+            "ae1",
+            "uk1",
+            "au1",
+            "ksa1",
+        ],
+    )
+    parser.add_argument(
+        "-oU",
+        "--override_urls",
+        help="Override platform URLs with a custom URL set formatted like ... --override_urls https://custom-api-url https://custom-gateway-url https://custom-qualysguard-url",
+        nargs=3,
+        metavar=("api_url", "gateway_url", "qualysguard_url"),
     )
 
     # subparser for action:
@@ -296,9 +320,21 @@ def main():
     )
 
     args = parser.parse_args()
+    configure_logging()
 
     # create TokenAuth object
-    auth = TokenAuth(args.username, args.password, platform=args.platform)
+    auth = TokenAuth(
+        args.username,
+        args.password,
+        platform=args.platform,
+        override_platform={
+            "api_url": args.override_urls[0],
+            "gateway_url": args.override_urls[1],
+            "qualysguard_url": args.override_urls[2],
+        }
+        if args.override_urls
+        else None,
+    )
 
     match args.action:
         case "list_jobs":
